@@ -43,31 +43,26 @@ app.post("/create-document", async (req, res) => {
       model: "project.task",
     };
 
-    const task = await odooService(taskParams, sessionId);
+    const task = (await odooService(taskParams, sessionId)).records[0] || {};
 
     if (!task) {
       return res.status(404).send("Task not found");
     }
 
-    const {
-      id,
-      name,
-      description,
-      partner_id,
-      company_id,
-      partner_email,
-      partner_city,
-      partner_state,
-    } = task?.records[0] || {};
-
     const empParams = {
-      domain: [["task_id", "=", id]],
+      domain: [["task_id", "=", task.id]],
       model: "account.analytic.line",
     };
 
-    const emp = await odooService(empParams, sessionId);
+    const emp = (await odooService(empParams, sessionId)).records[0] || {};
 
-    const { employee_id, date } = emp?.records[0] || {};
+    const partnerParams = {
+      domain: [["id", "=", task.partner_id[0]]],
+      model: "res.partner",
+    };
+
+    const partner =
+      (await odooService(partnerParams, sessionId)).records[0] || {};
 
     // Map task data to pdf
     const data = {
@@ -75,35 +70,35 @@ app.post("/create-document", async (req, res) => {
       tokens: [
         {
           name: "date",
-          value: date || "",
+          value: emp.date || "",
         },
         {
-          name: "partner_company",
-          value: company_id[1] || "",
+          name: "partner_id",
+          value: partner.name || "",
         },
         {
           name: "employee_id",
-          value: employee_id?.id || "",
+          value: emp.id || "",
         },
         {
           name: "partner_address",
-          value: partner_email || "",
+          value: partner.street || "",
         },
         {
           name: "partner_city",
-          value: partner_city || "",
+          value: partner.city || "",
         },
         {
           name: "partner_state",
-          value: partner_state || "",
+          value: partner.state_id[1] || "",
         },
         {
           name: "description",
-          value: description || "",
+          value: task.description || "",
         },
         {
           name: "name",
-          value: name || "",
+          value: task.name || "",
         },
       ],
       recipients: [
@@ -117,8 +112,6 @@ app.post("/create-document", async (req, res) => {
       ],
       //   Others fields here...
     };
-
-    console.log(data);
 
     let createdDocument = await createDocumentFromPandadocTemplate(
       apiInstance,
