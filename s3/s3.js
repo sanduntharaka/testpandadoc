@@ -35,7 +35,7 @@ export async function readFromS3(file_key) {
         const data = await s3.getObject(params);
 
         // If the data.Body is a Buffer, you may want to convert it to a string or process it accordingly
-        return data.Body; // This is a Buffer
+        return data; // This is a Buffer
     } catch (error) {
         console.log(error);
         throw error;
@@ -43,7 +43,7 @@ export async function readFromS3(file_key) {
 }
 
 // Download from S3
-export async function downloadFromS3(file_key) {
+export async function downloadFromS3(file_key, dirname) {
     const params = {
         Bucket: process.env.S3_BUCKET_NAME,
         Key: file_key,
@@ -51,9 +51,9 @@ export async function downloadFromS3(file_key) {
 
     try {
         const obj = await s3.getObject(params);
-        const file_name = `./documents/${Date.now().toString()}.png`;
+        const file_name = `./uploads/${dirname}/${Date.now().toString()}.png`;
 
-        await ensureDirectoryExists("./documents"); // Ensure the directory exists
+        await setupDirectories(); // Ensure the directory exists
 
         if (obj.Body instanceof Readable) {
             await streamToFile(obj.Body, file_name);
@@ -65,8 +65,22 @@ export async function downloadFromS3(file_key) {
     }
 }
 
-async function ensureDirectoryExists(dir) {
-    await fsPromises.mkdir(dir, { recursive: true });
+
+async function setupDirectories() {
+    async function ensureDirectoryExists(dir) {
+        await fsPromises.mkdir(dir, { recursive: true });
+    }
+
+    const parentDir = "./uploads";
+    const subDirs = ["clients", "operators"];
+
+    // Ensure the parent directory exists
+    await ensureDirectoryExists(parentDir);
+
+    // Ensure each subdirectory exists
+    for (const subDir of subDirs) {
+        await ensureDirectoryExists(`${parentDir}/${subDir}`);
+    }
 }
 
 async function streamToFile(stream, file_name) {
@@ -78,7 +92,7 @@ async function streamToFile(stream, file_name) {
 }
 
 const generateFileKey = (fileName) => {
-    return `uploads/${Date.now().toString()}_${fileName.replace(" ", "-")}`;
+    return `clients/${Date.now().toString()}_${fileName.replace(" ", "-")}`;
 };
 
 export function getSignatureURL(imagePath) {

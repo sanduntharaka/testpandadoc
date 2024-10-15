@@ -10,7 +10,7 @@ import {
     ensureDocumentCreated,
     documentSend,
 } from "./utils.js";
-import { odooService } from "./odoo.js";
+import { odooService, getCurrentSession } from "./odoo.js";
 import { uploadToS3, downloadFromS3, getSignatureURL } from "./s3/s3.js";
 
 const app = express();
@@ -31,12 +31,10 @@ const __filename = fileURLToPath(
 const __dirname = dirname(__filename);
 
 // Set the directory where your PDFs are stored
-const documentsDir = join(__dirname, "documents"); // Adjust path if necessary
+const uploadsDir = join(__dirname, "uploads"); // Adjust path if necessary
 
-console.log(documentsDir);
-
-// Serve static files from the documents directory
-app.use("/documents", express.static(documentsDir));
+// Serve static files from the uploads directory
+app.use("/uploads", express.static(uploadsDir));
 
 const storage = multer.memoryStorage(); // Store files in memory
 const upload = multer({ storage: storage });
@@ -69,6 +67,12 @@ app.post("/create-document", upload.single("file"), async(req, res) => {
     }
 
     try {
+        const currentUser = await getCurrentSession({}, sessionId);
+
+        if (!currentUser.uid) {
+            return res.status(401).send("Unauthorized: No user found!");
+        }
+
         const taskParams = {
             domain: [
                 ["id", "=", taskId]
@@ -103,10 +107,23 @@ app.post("/create-document", upload.single("file"), async(req, res) => {
 
         // Upload signature to S3
         const s3Signature = await uploadToS3(file);
-        const signatureImagePath = await downloadFromS3(s3Signature.file_key);
+
+        const clientSignatureImagePath = await downloadFromS3(
+            s3Signature.file_key,
+            "clients"
+        );
+
+        const operatorSignatureImagePath = await downloadFromS3(
+            `operators/${currentUser.uid}.png`,
+            "operators"
+        );
 
         const clientSignatureURL = getSignatureURL(
-            signatureImagePath.split("./")[1]
+            clientSignatureImagePath.split("./")[1]
+        );
+
+        const OperatorSignatureURL = getSignatureURL(
+            operatorSignatureImagePath.split("./")[1]
         );
 
         // Map task data to pdf
@@ -156,10 +173,10 @@ app.post("/create-document", upload.single("file"), async(req, res) => {
                     name: "Firma cliente",
                     urls: [clientSignatureURL],
                 },
-                // {
-                //     name: "Firma addetto",
-                //     urls: [],
-                // },
+                {
+                    name: "Firma addetto",
+                    urls: [OperatorSignatureURL],
+                },
             ],
             //   Others fields here...
         };
