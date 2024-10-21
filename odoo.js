@@ -19,3 +19,22 @@ export async function odooService(params, sessionId) {
 
     return response.data.result;
 }
+
+
+export async function getCurrentSession(params, sessionId) {
+    // sessionId = "dbe6eed382fd664eff00f4b4bc769b19c00a5a73"
+    const response = await axios.post(
+        `${ODOO_URL}/web/session/get_session_info`, {
+            jsonrpc: "2.0",
+            method: "call",
+            params,
+        }, {
+            withCredentials: true,
+            headers: {
+                Cookie: `session_id=${sessionId}`,
+            },
+        }
+    );
+
+    return response.data.result;
+}

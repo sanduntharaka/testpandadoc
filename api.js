@@ -1,6 +1,6 @@
 import * as pd_api from "pandadoc-node-client";
 import dotenv from "dotenv";
-dotenv.config({ path: "./.env" });
+dotenv.config();
 
 const API_KEY = process.env.PANDADOC_API_KEY;
 
