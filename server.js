@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-
 // Initialize environment variables
 dotenv.config();
 
@@ -26,7 +25,7 @@ app.use(
 app.use(cookieParser());
 
 // File uploading middleware
-const storage = multer.memoryStorage(); // Store files in memory
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 app.use(upload.single("file"));
 

@@ -4,9 +4,6 @@ dotenv.config();
 
 const { ACCESS_KEY, SECRET_KEY, REGION } = process.env;
 
-
-
-
 if (!ACCESS_KEY || !SECRET_KEY || !REGION) {
     throw new Error("Missing AWS S3 environment variables: ACCESS_KEY, SECRET_KEY, or REGION");
 }

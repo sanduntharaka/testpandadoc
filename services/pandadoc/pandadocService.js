@@ -3,21 +3,17 @@ import {
     createDocumentFromPandadocTemplate,
     ensureDocumentCreated,
     documentSend,
-} from '../utils/pandadocUtils.js';
+} from '../../utils/pandadocUtils.js';
 
-/**
- * High-level service to create and send a document via PandaDoc
- * @param {Object} data - The data to create the document (recipients, tokens, etc.)
- * @returns {Promise<Object>} Created document data
- */
+
 export async function createAndSendDocument(data) {
     try {
         // Step 1: Create a document using the template
         const createdDocument = await createDocumentFromPandadocTemplate(apiInstance, data);
-        
+
         // Step 2: Ensure the document is created and ready for sending
         await ensureDocumentCreated(apiInstance, createdDocument);
-        
+
         // Step 3: Send the document
         await documentSend(apiInstance, createdDocument);
 

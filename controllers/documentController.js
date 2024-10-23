@@ -1,8 +1,8 @@
-import { getCurrentSession } from "../services/odooService.js";
-import { createAndSendDocument } from "../services/pandadocService.js"; // Corrected import for service
+import { getCurrentSession } from "../services/odoo/odooService.js";
+import { createAndSendDocument } from "../services/pandadoc/pandadocService.js"; // Corrected import for service
 
-import { uploadToS3, downloadFromS3, getSignatureURL } from "../services/s3Service.js";
-import { odooService } from "../services/odooService.js";
+import { uploadToS3, downloadFromS3, getSignatureURL } from "../services/s3/s3Service.js";
+import { odooService } from "../services/odoo/odooService.js";
 
 export const createDocument = async (req, res, next) => {
     try {
@@ -24,6 +24,32 @@ export const createDocument = async (req, res, next) => {
         const task = (await odooService(taskParams, sessionId)).records[0];
         if (!task) return res.status(404).send("Task not found");
 
+
+
+        const empParams = {
+            domain: [
+                ["task_id", "=", task.id]
+            ],
+            model: "account.analytic.line",
+        };
+
+        const emp = (await odooService(empParams, sessionId)).records[0] || {};
+        if (!emp) return res.status(404).send("Emp not found");
+
+
+
+        const partnerParams = {
+            domain: [
+                ["id", "=", task.partner_id[0]]
+            ],
+            model: "res.partner",
+        };
+
+        const partner = (await odooService(partnerParams, sessionId)).records[0] || {};
+
+        if (!emp) return res.status(404).send("Emp not found");
+
+
         // Fetch additional data and upload signature to S3
         const s3Signature = await uploadToS3(req.file);
         const clientSignatureImagePath = await downloadFromS3(s3Signature.file_key, "clients");
@@ -33,29 +59,32 @@ export const createDocument = async (req, res, next) => {
         const OperatorSignatureURL = getSignatureURL(operatorSignatureImagePath.split("./")[1]);
 
         // Prepare document data
-        console.log(clientSignatureURL)
-        console.log(OperatorSignatureURL)
-
         const data = {
             templateId: "4XuGV2NXREbfZAN8i8PiS3",
             tokens: [
-                { name: "date", value: task.date || "" },
-                { name: "partner_id", value: task.partner_id || "" },
+                {
+                    name: "date",
+                    value: emp.date || ""
+                },
+                {
+                    name: "partner_id",
+                    value: partner.name || ""
+                },
                 {
                     name: "employee_id",
-                    value: task.id || "",
+                    value: emp.id || "",
                 },
                 {
                     name: "partner_address",
-                    value: task.street || "",
+                    value: partner.street || "",
                 },
                 {
                     name: "partner_city",
-                    value: task.city || "",
+                    value: partner.city || "",
                 },
                 {
                     name: "partner_state",
-                    value: "normal",
+                    value: partner.state_id[1] || "",
                 },
                 {
                     name: "description",
@@ -76,11 +105,11 @@ export const createDocument = async (req, res, next) => {
                 },
             ],
             images: [
-                { name: "Client Signature", urls: [clientSignatureURL] },
-                { name: "Operator Signature", urls: [OperatorSignatureURL] },
+                { name: "Firma cliente", urls: [clientSignatureURL] },
+                { name: "Firma addetto", urls: [OperatorSignatureURL] },
             ],
         };
-  
+
         // Call the high-level service function to create and send the document
         const documentResponse = await createAndSendDocument(data);
 
