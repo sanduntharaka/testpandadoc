@@ -8,13 +8,12 @@ import {
 
 export async function createAndSendDocument(data) {
     try {
-        // Step 1: Create a document using the template
+
         const createdDocument = await createDocumentFromPandadocTemplate(apiInstance, data);
 
-        // Step 2: Ensure the document is created and ready for sending
         await ensureDocumentCreated(apiInstance, createdDocument);
 
-        // Step 3: Send the document
+
         await documentSend(apiInstance, createdDocument);
 
         return {

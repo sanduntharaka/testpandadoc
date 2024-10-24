@@ -1,98 +1,80 @@
-import { getCurrentSession } from "../services/odoo/odooService.js";
-import { createAndSendDocument } from "../services/pandadoc/pandadocService.js"; // Corrected import for service
-
+import { callOdooMethod, getCurrentSession } from "../services/odoo/odooRpcService.js";
+import { createAndSendDocument } from "../services/pandadoc/pandadocService.js";
 import { uploadToS3, downloadFromS3, getSignatureURL } from "../services/s3/s3Service.js";
-import { odooService } from "../services/odoo/odooService.js";
 
 export const createDocument = async (req, res, next) => {
     try {
         const { taskId } = req.body;
-        const sessionId = req.cookies.session_id;
 
-        if (!sessionId) return res.status(401).send("Unauthorized: No session ID provided!");
         if (!taskId) return res.status(400).send("Bad Request: No task ID provided!");
         if (!req.file) return res.status(400).send("Bad Request: Signature is missing!");
 
-        const currentUser = await getCurrentSession({}, sessionId);
-        if (!currentUser.uid) return res.status(401).send("Unauthorized: No user found!");
+        // Fetch task details from Odoo using RPC service
+        const task = await callOdooMethod('project.task', 'search_read', [
+            [['id', '=', taskId]], ['name', 'description', 'partner_id']
+        ]);
 
-        // Fetch task details from Odoo
-        const taskParams = {
-            domain: [["id", "=", taskId]],
-            model: "project.task",
-        };
-        const task = (await odooService(taskParams, sessionId)).records[0];
-        if (!task) return res.status(404).send("Task not found");
+        if (!task || task.length === 0) return res.status(404).send("Task not found");
 
+        const emp = await callOdooMethod('account.analytic.line', 'search_read', [
+            [['task_id', '=', task[0].id]], ['date', 'id']
+        ]);
 
-
-        const empParams = {
-            domain: [
-                ["task_id", "=", task.id]
-            ],
-            model: "account.analytic.line",
-        };
-
-        const emp = (await odooService(empParams, sessionId)).records[0] || {};
-        if (!emp) return res.status(404).send("Emp not found");
+        const partner = await callOdooMethod('res.partner', 'search_read', [
+            [['id', '=', task[0].partner_id[0]]], ['name', 'street', 'city', 'state_id']
+        ]);
 
 
+        const currentUser = await getCurrentSession({});
+        if (!currentUser || !currentUser.uid) {
+            return res.status(401).send("Unauthorized: No user found!");
 
-        const partnerParams = {
-            domain: [
-                ["id", "=", task.partner_id[0]]
-            ],
-            model: "res.partner",
-        };
+        }
 
-        const partner = (await odooService(partnerParams, sessionId)).records[0] || {};
-
-        if (!emp) return res.status(404).send("Emp not found");
-
-
-        // Fetch additional data and upload signature to S3
+        // Upload signature to S3 and retrieve URLs
         const s3Signature = await uploadToS3(req.file);
         const clientSignatureImagePath = await downloadFromS3(s3Signature.file_key, "clients");
+
         const operatorSignatureImagePath = await downloadFromS3(`operators/${currentUser.uid}.png`, "operators");
 
         const clientSignatureURL = getSignatureURL(clientSignatureImagePath.split("./")[1]);
         const OperatorSignatureURL = getSignatureURL(operatorSignatureImagePath.split("./")[1]);
 
-        // Prepare document data
+        // Prepare document data for PandaDoc
         const data = {
             templateId: "4XuGV2NXREbfZAN8i8PiS3",
             tokens: [
                 {
                     name: "date",
-                    value: emp.date || ""
+                    value: emp[0].date || ""
                 },
                 {
                     name: "partner_id",
-                    value: partner.name || ""
+                    value: partner[0].name || ""
                 },
                 {
                     name: "employee_id",
-                    value: emp.id || "",
+                    value: emp[0].id || "",
                 },
                 {
                     name: "partner_address",
-                    value: partner.street || "",
+                    value: partner[0].street || "",
                 },
                 {
                     name: "partner_city",
-                    value: partner.city || "",
+                    value: partner[0].city || "",
                 },
                 {
                     name: "partner_state",
-                    value: partner.state_id[1] || "",
+                    value: partner[0].state_id[1] || "",
                 },
                 {
                     name: "description",
-                    value: task.description || "",
+                    value: task[0].description || "",
                 },
                 {
                     name: "name",
-                    value: task.name || "",
+                    value: task[0].name || "",
                 },
             ],
             recipients: [
@@ -110,7 +92,7 @@ export const createDocument = async (req, res, next) => {
             ],
         };
 
-        // Call the high-level service function to create and send the document
+        // Call the PandaDoc service function to create and send the document
         const documentResponse = await createAndSendDocument(data);
 
         res.status(201).json({
@@ -119,6 +101,6 @@ export const createDocument = async (req, res, next) => {
             data: documentResponse,
         });
     } catch (error) {
-        next(error); // Pass error to centralized error handler
+        next(error);
     }
 };

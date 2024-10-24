@@ -8,11 +8,7 @@ dotenv.config();
 
 const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME;
 
-/**
- * Upload a file to S3
- * @param {Object} file - The file to upload
- * @returns {Promise<Object>} - Uploaded file details
- */
+
 export async function uploadToS3(file) {
     try {
         const file_key = generateFileKey(file.originalname);
@@ -35,11 +31,7 @@ export async function uploadToS3(file) {
     }
 }
 
-/**
- * Read a file from S3
- * @param {string} file_key - The key of the file to read
- * @returns {Promise<Buffer>} - The file data
- */
+
 export async function readFromS3(file_key) {
     try {
         const params = {
@@ -57,12 +49,6 @@ export async function readFromS3(file_key) {
     }
 }
 
-/**
- * Download a file from S3 to a local directory
- * @param {string} file_key - The S3 key of the file
- * @param {string} dirname - The directory to store the downloaded file
- * @returns {Promise<string>} - The local file path
- */
 export async function downloadFromS3(file_key, dirname) {
     try {
         const params = {
@@ -70,10 +56,13 @@ export async function downloadFromS3(file_key, dirname) {
             Key: file_key,
         };
 
+
         const obj = await s3.getObject(params);
+
         const file_name = `./uploads/${dirname}/${Date.now().toString()}.png`;
 
-        await setupDirectories(dirname); // Ensure the directory exists
+
+        await setupDirectories(dirname);
 
         if (obj.Body instanceof Readable) {
             await streamToFile(obj.Body, file_name);
