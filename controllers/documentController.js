@@ -1,6 +1,20 @@
-import { callOdooMethod, getCurrentSession } from "../services/odoo/odooRpcService.js";
+import { OdooService } from "../services/odoo/odooService.js";
 import { createAndSendDocument } from "../services/pandadoc/pandadocService.js";
 import { uploadToS3, downloadFromS3, getSignatureURL } from "../services/s3/s3Service.js";
+
+const odoo = new OdooService(
+    process.env.ODOO_URL,
+    process.env.ODOO_DB,
+    process.env.ODOO_USERNAME,
+    process.env.ODOO_PASSWORD
+);
+
+// Define instances for specific Odoo models
+const TaskModel = odoo.model('project.task');
+const EmployeeModel = odoo.model('account.analytic.line');
+const PartnerModel = odoo.model('res.partner');
+const userModel = odoo.model('');
+
 
 export const createDocument = async (req, res, next) => {
     try {
@@ -9,26 +23,22 @@ export const createDocument = async (req, res, next) => {
         if (!taskId) return res.status(400).send("Bad Request: No task ID provided!");
         if (!req.file) return res.status(400).send("Bad Request: Signature is missing!");
 
-        // Fetch task details from Odoo using RPC service
-        const task = await callOdooMethod('project.task', 'search_read', [
-            [['id', '=', taskId]], ['name', 'description', 'partner_id']
-        ]);
+        // Fetch task details from Odoo using TaskModel
+        const task = await TaskModel.fetchTask(taskId);
 
         if (!task || task.length === 0) return res.status(404).send("Task not found");
 
-        const emp = await callOdooMethod('account.analytic.line', 'search_read', [
-            [['task_id', '=', task[0].id]], ['date', 'id']
-        ]);
+        // Fetch employee data by task ID using EmployeeModel
+        const empData = await EmployeeModel.fetchEmployeeByTaskId(task.id);
+        const emp = empData[0] || {};  // Assume first record or default to empty
 
-        const partner = await callOdooMethod('res.partner', 'search_read', [
-            [['id', '=', task[0].partner_id[0]]], ['name', 'street', 'city', 'state_id']
-        ]);
+        // Fetch partner data by partner ID from task data using PartnerModel
+        const partner = await PartnerModel.fetchPartnerById(task.partner_id[0]);
 
-
-        const currentUser = await getCurrentSession({});
+        // Fetch current session user info
+        const currentUser = await userModel.getUser();
         if (!currentUser || !currentUser.uid) {
             return res.status(401).send("Unauthorized: No user found!");
-
         }
 
         // Upload signature to S3 and retrieve URLs
@@ -46,35 +56,35 @@ export const createDocument = async (req, res, next) => {
             tokens: [
                 {
                     name: "date",
-                    value: emp[0].date || ""
+                    value: emp.date || ""
                 },
                 {
                     name: "partner_id",
-                    value: partner[0].name || ""
+                    value: partner.name || ""
                 },
                 {
                     name: "employee_id",
-                    value: emp[0].id || "",
+                    value: emp.id || "",
                 },
                 {
                     name: "partner_address",
-                    value: partner[0].street || "",
+                    value: partner.street || "",
                 },
                 {
                     name: "partner_city",
-                    value: partner[0].city || "",
+                    value: partner.city || "",
                 },
                 {
                     name: "partner_state",
-                    value: partner[0].state_id[1] || "",
+                    value: partner.state_id[1] || "",
                 },
                 {
                     name: "description",
-                    value: task[0].description || "",
+                    value: task.description || "",
                 },
                 {
                     name: "name",
-                    value: task[0].name || "",
+                    value: task.name || "",
                 },
             ],
             recipients: [

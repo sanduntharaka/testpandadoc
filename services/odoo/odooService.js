@@ -1,54 +1,81 @@
-import axios from "axios";
-import dotenv from "dotenv";
-dotenv.config();
-const ODOO_URL = process.env.ODOO_URL;
+import axios from 'axios';
+import OdooModelClass from './odooModel.js';
 
-if (!ODOO_URL) {
-    throw new Error("ODOO_URL is not defined in the environment variables");
-}
+class OdooService {
+  constructor(url, db, username, password) {
+    this.url = url;
+    this.db = db;
+    this.username = username;
+    this.password = password;
+    this.uid = null;
+    this.client = axios.create({
+      baseURL: `${this.url}/jsonrpc`,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
 
-export async function odooService(params, sessionId) {
+  async jsonRpcCall(method, params) {
     try {
-        const response = await axios.post(
-            `${ODOO_URL}/web/dataset/search_read`,
-            {
-                jsonrpc: "2.0",
-                method: "call",
-                params,
-            },
-            {
-                withCredentials: true,
-                headers: {
-                    Cookie: `session_id=${sessionId}`,
-                },
-            }
-        );
-        return response.data.result;
+      const response = await this.client.post('', {
+        jsonrpc: '2.0',
+        method: method,
+        params: params,
+        id: Math.floor(Math.random() * 1000000),
+      });
+
+      if (response.data.error) {
+        console.error("Odoo Server Error Details:", response.data.error);
+        throw new Error(`Odoo Server Error: ${response.data.error.message}`);
+      }
+
+      return response.data.result;
     } catch (error) {
-        console.error("Error in odooService:", error);
-        throw new Error("Failed to retrieve data from Odoo");
+      console.error("Error in jsonRpcCall:", error.message);
+      throw new Error("Odoo Server Error");
     }
+  }
+
+  async authenticate() {
+    this.uid = await this.jsonRpcCall('call', {
+      service: 'common',
+      method: 'authenticate',
+      args: [this.db, this.username, this.password, {}],
+    });
+    return this.uid;
+  }
+
+  async search(model, domain) {
+    if (!this.uid) throw new Error('Not authenticated');
+    return this.jsonRpcCall('call', {
+      service: 'object',
+      method: 'execute_kw',
+      args: [this.db, this.uid, this.password, model, 'search', [domain]],
+    });
+  }
+
+  async read(model, ids, fields) {
+    if (!this.uid) throw new Error('Not authenticated');
+    return this.jsonRpcCall('call', {
+      service: 'object',
+      method: 'execute_kw',
+      args: [this.db, this.uid, this.password, model, 'read', [ids], { fields }],
+    });
+  }
+
+  async searchRead(model, domain, fields) {
+    if (!this.uid) throw new Error('Not authenticated');
+    return this.jsonRpcCall('call', {
+      service: 'object',
+      method: 'execute_kw',
+      args: [this.db, this.uid, this.password, model, 'search_read', [domain], { fields }],
+    });
+  }
+
+  model(modelName) {
+    return new OdooModelClass(this, modelName);
+  }
 }
 
-export async function getCurrentSession(params, sessionId) {
-    try {
-        const response = await axios.post(
-            `${ODOO_URL}/web/session/get_session_info`,
-            {
-                jsonrpc: "2.0",
-                method: "call",
-                params,
-            },
-            {
-                withCredentials: true,
-                headers: {
-                    Cookie: `session_id=${sessionId}`,
-                },
-            }
-        );
-        return response.data.result;
-    } catch (error) {
-        console.error("Error in getCurrentSession:", error);
-        throw new Error("Failed to retrieve session information from Odoo");
-    }
-}
+export { OdooService };

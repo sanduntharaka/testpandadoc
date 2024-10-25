@@ -1,25 +1,25 @@
 {
-    "name": "pandadoc",
-    "version": "1.0.0",
-    "main": "server.js",
-    "type": "module",
-    "scripts": {
-        "start": "nodemon server.js"
-    },
-    "keywords": [],
-    "author": "",
-    "license": "ISC",
-    "description": "",
-    "dependencies": {
-        "@aws-sdk/client-s3": "^3.670.0",
-        "axios": "^1.7.7",
-        "cookie-parser": "^1.4.6",
-        "dotenv": "^16.4.5",
-        "express": "^4.21.0",
-        "multer": "^1.4.5-lts.1",
-        "pandadoc-node-client": "^6.2.0"
-    },
-    "devDependencies": {
-        "nodemon": "^3.1.7"
-    }
+  "name": "pandadoc",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "nodemon server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.670.0",
+    "axios": "^1.7.7",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1",
+    "pandadoc-node-client": "^6.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
 }
