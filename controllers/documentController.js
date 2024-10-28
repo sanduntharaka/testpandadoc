@@ -13,7 +13,7 @@ const odoo = new OdooService(
 const TaskModel = odoo.model('project.task');
 const EmployeeModel = odoo.model('account.analytic.line');
 const PartnerModel = odoo.model('res.partner');
-const userModel = odoo.model('');
+const UserModel = odoo.model('res.users');
 
 
 export const createDocument = async (req, res, next) => {
@@ -23,32 +23,43 @@ export const createDocument = async (req, res, next) => {
         if (!taskId) return res.status(400).send("Bad Request: No task ID provided!");
         if (!req.file) return res.status(400).send("Bad Request: Signature is missing!");
 
+        await odoo.authenticate();
         // Fetch task details from Odoo using TaskModel
-        const task = await TaskModel.fetchTask(taskId);
-
-        if (!task || task.length === 0) return res.status(404).send("Task not found");
-
+        // const task = await TaskModel.fetchTask(taskId);
+        // console.log('h1')
+        const taskIds = await TaskModel.search([['id', '=', taskId]]);
+        if (taskIds.length === 0) return res.status(404).send("Task not found");
+        const task = (await TaskModel.read(taskIds, ['name', 'description', 'partner_id']))[0];
+        // console.log('h2')
         // Fetch employee data by task ID using EmployeeModel
-        const empData = await EmployeeModel.fetchEmployeeByTaskId(task.id);
-        const emp = empData[0] || {};  // Assume first record or default to empty
+
+        const empData = await EmployeeModel.searchRead([['task_id', '=', taskId]], ['date', 'id']);
+        const emp = empData[0] || {};
+        // console.log('h3')
 
         // Fetch partner data by partner ID from task data using PartnerModel
-        const partner = await PartnerModel.fetchPartnerById(task.partner_id[0]);
-
+        const partner = (await PartnerModel.searchRead([['id', '=', task.partner_id[0]]], ['name', 'street', 'city', 'state_id']))[0];
+        // console.log('h4')
         // Fetch current session user info
-        const currentUser = await userModel.getUser();
-        if (!currentUser || !currentUser.uid) {
-            return res.status(401).send("Unauthorized: No user found!");
-        }
+        const userIds = await UserModel.search([['id', '=', odoo.uid]]);
+        if (userIds.length === 0) return res.status(401).send("Unauthorized: No user found!");
+        const currentUser = (await UserModel.read(userIds, ['id', 'name', 'login']))[0];
+
+        // console.log('h5:', currentUser)
 
         // Upload signature to S3 and retrieve URLs
         const s3Signature = await uploadToS3(req.file);
-        const clientSignatureImagePath = await downloadFromS3(s3Signature.file_key, "clients");
 
-        const operatorSignatureImagePath = await downloadFromS3(`operators/${currentUser.uid}.png`, "operators");
+        // console.log('h6')
+        const clientSignatureImagePath = await downloadFromS3(s3Signature.file_key, "clients");
+        // console.log('h7')
+
+        const operatorSignatureImagePath = await downloadFromS3(`operators/${currentUser.id}.png`, "operators");
+        // console.log('h8')
 
         const clientSignatureURL = getSignatureURL(clientSignatureImagePath.split("./")[1]);
         const OperatorSignatureURL = getSignatureURL(operatorSignatureImagePath.split("./")[1]);
+        // console.log('h9')
 
         // Prepare document data for PandaDoc
         const data = {

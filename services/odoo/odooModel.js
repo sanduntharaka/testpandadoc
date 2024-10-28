@@ -19,35 +19,33 @@ class OdooModelClass {
         return this.service.searchRead(this.modelName, domain, fields);
     }
 
-    async fetchTask(taskId) {
+    async create(values) {
         await this.service.authenticate();
-        const taskIds = await this.search([['id', '=', taskId]]);
-        if (taskIds.length === 0) throw new Error('Task not found');
-        const taskData = await this.read(taskIds, ['name', 'description', 'partner_id']);
-        return taskData[0];
+        return this.service.create(this.modelName, values);
     }
 
-    async fetchEmployeeByTaskId(taskId) {
+    async update(id, values) {
         await this.service.authenticate();
-        return this.searchRead(
-            [['task_id', '=', taskId]],
-            ['date', 'id']
-        );
+        return this.service.update(this.modelName, id, values);
     }
 
-    async fetchPartnerById(partnerId) {
+    async delete(id) {
         await this.service.authenticate();
-        const partnerData = await this.searchRead(
-            [['id', '=', partnerId]],
-            ['name', 'street', 'city', 'state_id']
-        );
-        return partnerData[0];
+        return this.service.delete(this.modelName, id);
     }
 
-    async getUser() {
-        await this.service.authenticate();
-        return this.service;
+    async findOne(domain, fields) {
+        const ids = await this.search(domain);
+        if (ids.length === 0) return null;
+        const records = await this.read([ids[0]], fields);
+        return records[0] || null;
     }
+
+    async findAll(domain, fields) {
+        const ids = await this.search(domain);
+        return this.read(ids, fields);
+    }
+
 }
 
 export default OdooModelClass;

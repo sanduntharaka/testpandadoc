@@ -73,6 +73,34 @@ class OdooService {
     });
   }
 
+  async create(model, values) {
+    if (!this.uid) throw new Error('Not authenticated');
+    return this.jsonRpcCall('call', {
+      service: 'object',
+      method: 'execute_kw',
+      args: [this.db, this.uid, this.password, model, 'create', [values]],
+    });
+  }
+
+  async update(model, id, values) {
+    if (!this.uid) throw new Error('Not authenticated');
+    return this.jsonRpcCall('call', {
+      service: 'object',
+      method: 'execute_kw',
+      args: [this.db, this.uid, this.password, model, 'write', [[id], values]],
+    });
+  }
+
+  async delete(model, id) {
+    if (!this.uid) throw new Error('Not authenticated');
+    return this.jsonRpcCall('call', {
+      service: 'object',
+      method: 'execute_kw',
+      args: [this.db, this.uid, this.password, model, 'unlink', [[id]]],
+    });
+  }
+
+
   model(modelName) {
     return new OdooModelClass(this, modelName);
   }
