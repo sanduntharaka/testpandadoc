@@ -43,7 +43,7 @@ const uploadsDir = path.join(__dirname, "uploads");
 app.use("/uploads", express.static(uploadsDir));
 
 // Routes
-app.use("/.netlify/functions/api/", documentRoutes);
+app.use("/api", documentRoutes);
 
 // Health check route
 app.get("/health", (req, res) => res.status(200).send("OK!"));
