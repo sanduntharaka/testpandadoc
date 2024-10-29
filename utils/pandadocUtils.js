@@ -1,18 +1,11 @@
-const MAX_CHECK_RETRIES = 5;
-
 export async function createDocumentFromPandadocTemplate(apiInstance, body) {
     const { tokens, recipients, templateId, images } = body;
     const documentCreateRequest = {
         name: "Field Service Report",
-        templateUuid: templateId, // Replace with your template UUID
+        templateUuid: templateId,
         recipients,
         tokens,
         images,
-        fields: {},
-        metadata: {},
-        pricing: {},
-        tags: [],
-        content_placeholders: [],
     };
 
     return await apiInstance.createDocument({
@@ -21,23 +14,24 @@ export async function createDocumentFromPandadocTemplate(apiInstance, body) {
 }
 
 export async function ensureDocumentCreated(apiInstance, document) {
-    // let status = document.status;
+    const MAX_CHECK_RETRIES = 5;
+    const RETRY_INTERVAL_MS = 2000;
 
     let retries = 0;
-
     while (retries < MAX_CHECK_RETRIES) {
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise((resolve) => setTimeout(resolve, RETRY_INTERVAL_MS));
         retries++;
 
-        let response = await apiInstance.statusDocument({
+        const response = await apiInstance.statusDocument({
             id: String(document.id),
         });
+
         if (response.status === "document.draft") {
             return;
         }
     }
 
-    throw Error("Document was not sent");
+    throw new Error("Document was not sent after multiple retries");
 }
 
 export async function documentSend(apiInstance, document) {
