@@ -108,8 +108,6 @@ export async function getPresignedUrl(file_key) {
         ResponseContentType: contentType,
     });
     const signedUrl = await getSignedUrl(s3_new, command, { expiresIn: 300 });;
-
-    console.log('signedUrl:', signedUrl);
     return signedUrl;
 
 }

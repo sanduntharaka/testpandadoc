@@ -26,3 +26,26 @@ we can setup netlify using following commands
 
 **add api.js(same as server file) within functions folder**
 
+## make sure add .env in netlify
+sample .env </br>
+```
+# PandaDoc
+PANDADOC_API_KEY=
+PANDADOC_BASE_URL=
+
+# S3
+ACCESS_KEY=
+SECRET_KEY=
+REGION=eu-central-1
+S3_BUCKET_NAME=
+
+# NGROK URL
+NGROK_URL=
+
+# Odoo URL
+ODOO_URL=
+ODOO_DB= 
+ODOO_USERNAME=
+ODOO_PASSWORD=
+
+```
