@@ -1,4 +1,4 @@
-import { S3 } from "@aws-sdk/client-s3";
+import { S3, S3Client } from "@aws-sdk/client-s3";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -9,6 +9,15 @@ if (!ACCESS_KEY || !SECRET_KEY || !REGION) {
 }
 
 export const s3 = new S3({
+    region: REGION,
+    credentials: {
+        accessKeyId: ACCESS_KEY,
+        secretAccessKey: SECRET_KEY,
+    },
+});
+
+
+export const s3_new = new S3Client({
     region: REGION,
     credentials: {
         accessKeyId: ACCESS_KEY,

@@ -2,3 +2,5 @@ node_modules
 uploads
 .env
 .todo
+# Local Netlify folder
+.netlify

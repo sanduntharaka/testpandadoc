@@ -1,6 +1,6 @@
 import { OdooService } from "../services/odoo/odooService.js";
 import { createAndSendDocument } from "../services/pandadoc/pandadocService.js";
-import { uploadToS3, downloadFromS3, getSignatureURL } from "../services/s3/s3Service.js";
+import { uploadToS3, downloadFromS3, getSignatureURL, getPresignedUrl } from "../services/s3/s3Service.js";
 
 const odoo = new OdooService(
     process.env.ODOO_URL,
@@ -51,15 +51,20 @@ export const createDocument = async (req, res, next) => {
         const s3Signature = await uploadToS3(req.file);
 
         // console.log('h6')
-        const clientSignatureImagePath = await downloadFromS3(s3Signature.file_key, "clients");
-        // console.log('h7')
+        // const clientSignatureImagePath = await downloadFromS3(s3Signature.file_key, "clients");
+        // // console.log('h7')
 
-        const operatorSignatureImagePath = await downloadFromS3(`operators/${currentUser.id}.png`, "operators");
+        // const operatorSignatureImagePath = await downloadFromS3(`operators/${currentUser.id}.png`, "operators");
         // console.log('h8')
 
-        const clientSignatureURL = getSignatureURL(clientSignatureImagePath.split("./")[1]);
-        const OperatorSignatureURL = getSignatureURL(operatorSignatureImagePath.split("./")[1]);
+        // const clientSignatureURL = getSignatureURL(clientSignatureImagePath.split("./")[1]);
+        // const OperatorSignatureURL = getSignatureURL(operatorSignatureImagePath.split("./")[1]);
+
+        const clientSignatureURL = await getPresignedUrl(s3Signature.file_key);
+        const operatorSignatureURL = await getPresignedUrl(`operators/${currentUser.id}.png`);
         // console.log('h9')
+        console.log(clientSignatureURL, operatorSignatureURL)
+
 
         // Prepare document data for PandaDoc
         const data = {
@@ -109,7 +114,7 @@ export const createDocument = async (req, res, next) => {
             ],
             images: [
                 { name: "Firma cliente", urls: [clientSignatureURL] },
-                { name: "Firma addetto", urls: [OperatorSignatureURL] },
+                { name: "Firma addetto", urls: [operatorSignatureURL] },
             ],
         };
 

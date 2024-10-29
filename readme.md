@@ -1,0 +1,28 @@
+# Setup netlify
+
+we can setup netlify using following commands
+
+**netlify login** > this is using to login </br>
+**netlify build** > build project </br>
+**netlify build --prod** > deploy to production
+
+## netlify.toml
+
+```
+[build]
+    functions = "functions"
+    external_node_modules = ["express","axios", "pandadoc-node-client", "@aws-sdk/client-s3", "cookie-parser" , "dotenv", "multer",  "serverless-http","@aws-sdk/s3-request-presigner",]
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  force = true
+  from = "/api/*"
+  status = 200
+  to = "/.netlify/functions/api/:splat"
+
+```
+
+**add api.js(same as server file) within functions folder**
+
