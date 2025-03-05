@@ -3,7 +3,8 @@
     external_node_modules = ["express","axios", "pandadoc-node-client", "@aws-sdk/client-s3", "cookie-parser" , "dotenv", "multer",  "serverless-http","@aws-sdk/s3-request-presigner",]
 
 [functions]
-  node_bundler = "esbuild"
+    node_bundler = "esbuild"
+    timeout = 26
 
 [[redirects]]
   force = true
