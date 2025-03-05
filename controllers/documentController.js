@@ -33,11 +33,28 @@ export const createDocument = async (req, res, next) => {
     await odoo.authenticate();
     // Fetch task details from Odoo using TaskModel
     const taskIds = await TaskModel.search([["id", "=", taskId]]);
-    console.log("IDS:", taskIds);
+
     if (taskIds.length === 0) return res.status(404).send("Task not found");
     const task = (
-      await TaskModel.read(taskIds, ["name", "description", "partner_id"])
+      await TaskModel.read(taskIds, [
+        "name",
+        "description",
+        "partner_id",
+        "user_ids",
+      ])
     )[0];
+
+    let assigneeName = "No Assignee";
+    let assigneeID = null;
+
+    if (task.user_ids.length > 0) {
+      // Fetch user details from res.users
+      const userDetails = await UserModel.read(task.user_ids, ["id", "name"]);
+
+      // Assign first user (if multiple, adjust as needed)
+      assigneeID = userDetails[0].id;
+      assigneeName = userDetails[0].name;
+    }
 
     // Fetch partner data by partner ID from task data using PartnerModel
     const partner = (
@@ -65,15 +82,24 @@ export const createDocument = async (req, res, next) => {
       ["id", "date", "employee_id"] // Fetch the 'date' field
     );
 
-    console.log("Analytic Line Details:", analyticLineDetails);
+    // console.log("analyticLineDetails", analyticLineDetails);
 
     const taskDate =
       analyticLineDetails.length > 0 ? analyticLineDetails[0].date : "";
 
-    const employeeId =
-      analyticLineDetails.length > 0
-        ? analyticLineDetails[0].employee_id[0]
-        : null;
+    // const employeeId =
+    //   analyticLineDetails.length > 0
+    //     ? analyticLineDetails[0].employee_id[0]
+    //     : null;
+
+    // const employeeName =
+    //   analyticLineDetails.length > 0
+    //     ? analyticLineDetails[0].employee_id[1]
+    //     : "";
+
+    // console.log(taskDate, employeeId, employeeName);
+
+    // TODO add this employee signature
 
     // Upload signature to S3 and retrieve URLs
     const s3Signature = await uploadToS3(req.file);
@@ -89,9 +115,18 @@ export const createDocument = async (req, res, next) => {
     // const OperatorSignatureURL = getSignatureURL(operatorSignatureImagePath.split("./")[1]);
 
     const clientSignatureURL = await getPresignedUrl(s3Signature.file_key);
+    // let operatorSignatureURL;
+    // try {
+    //   const operatorSignatureURL = await getPresignedUrl(
+    //     `operators/${assigneeID}.png`
+    //   );
+    // } catch (error) {
+    //   console.log("error", error);
     const operatorSignatureURL = await getPresignedUrl(
       `operators/${currentUser.id}.png`
     );
+    // }
+
     // console.log('h9')
     console.log(clientSignatureURL, operatorSignatureURL);
 
@@ -109,7 +144,7 @@ export const createDocument = async (req, res, next) => {
         },
         {
           name: "employee_id",
-          value: employeeId || "",
+          value: assigneeName || "",
         },
         {
           name: "partner_address",
